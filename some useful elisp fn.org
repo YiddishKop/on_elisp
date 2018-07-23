@@ -1,0 +1,606 @@
+** 3.11 Review
+
+[copy from elisp 官网教程]
+In the last few chapters we have introduced a macro and a fair number of
+functions and special forms. Here they are described in brief, along with a few
+similar functions that have not been mentioned yet.
+*** ----buffer string related----
+*** insert
+    insert string at the position where current cusor locate at.
+    #+BEGIN_SRC elisp
+    (insert "your cursor here~~~")
+    #+END_SRC
+*** car cdr elt nth aref append list
+#+BEGIN_SRC elisp
+  ;; 取首元素
+  (car '(1 2 3)) ; 1
+
+  ;; 取尾列表
+  (cdr '(1 2 3)) ; (2 3)
+
+  ;; 列表融合
+  (append '(1 2) '(2 4)) ; (1 2 2 4)
+
+  ;; 创建元素为列表
+  (list 1 2 3 4) ; (1 2 3 4)
+
+  ;; elt 相当于索引 arr[3] ===> (elt arr 3)
+  (elt '(1 2 3 4) 3) ; 4
+
+  ;; nth 与 elt 差不多, 参数顺序不同而已
+  (nth 3 '(1 2 3 4)) ; 4
+
+  ;; aref 与 elt 差不多, 用于索引 string, array
+  (elt "nihao" 3); 97
+  (aref "nihao" 3); 97
+#+END_SRC
+*** number-sequence
+    类似 python 的 range 函数
+    #+BEGIN_QUOTE
+    ~(number-sequence FROM TO INC)~
+    #+END_QUOTE
+
+    #+BEGIN_SRC elisp
+    (number-sequence 10 20)
+    #+END_SRC
+
+    #+RESULTS:
+    | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 |
+
+
+    #+BEGIN_SRC elisp
+    (number-sequence 10 20 3)
+    #+END_SRC
+
+    #+RESULTS:
+    | 10 | 13 | 16 | 19 |
+
+
+    #+BEGIN_SRC elisp
+    (number-sequence 20 10 -1)
+    #+END_SRC
+
+    #+RESULTS:
+    | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 |
+
+*** eval-last-sexp
+Evaluate the last symbolic expression before the current location of point. The
+value is printed in the echo area unless the function is invoked with an
+argument; in that case, the output is printed in the current buffer. This
+command is normally bound to C-x C-e.
+
+*** defun
+Define function. This macro has up to five parts: the name, a template for the
+arguments that will be passed to the function, documentation, an optional
+interactive declaration, and the body of the definition. For example, in Emacs
+the function definition of dired-unmark-all-marks is as follows.
+
+#+BEGIN_SRC elisp
+          (defun dired-unmark-all-marks ()
+            "Remove all marks from all files in the Dired buffer."
+            (interactive)
+            (dired-unmark-all-files ?\r))
+#+END_SRC
+
+*** interactive
+Declare to the interpreter that the function can be used interactively. This
+special form may be followed by a string with one or more parts that pass the
+information to the arguments of the function, in sequence. These parts may also
+tell the interpreter to prompt for information. Parts of the string are
+separated by newlines, ‘\n’. Common code characters are:
+
+- b The name of an existing buffer.
+- f The name of an existing file.
+- p The numeric prefix argument. (Note that this p is lower case.)
+- r Point and the mark, as two numeric arguments, smallest first. This is the
+  only code letter that specifies two successive arguments rather than one.
+
+See Code Characters for ‘interactive’, for a complete list of code characters.
+
+*** let
+Declare that a list of variables is for use within the body of the ~let~ and
+give them an initial value, either nil or a specified value; then evaluate the
+rest of the expressions in the body of the let and return the value of the last
+one. Inside the body of the let, the Lisp interpreter does not see the values of
+the variables of the same names that are bound outside of the let. For example,
+
+#+BEGIN_SRC elisp
+          (let ((foo (buffer-name))
+                (bar (buffer-size)))
+            (message
+             "This buffer is %s and has %d characters."
+             foo bar))
+#+END_SRC
+
+#+RESULTS:
+: This buffer is some useful elisp fn.org and has 16811 characters.
+
+*** save-excursion
+Record the values of point and the current buffer before evaluating the body of
+this special form. Restore the value of point and buffer afterward. For example,
+
+#+BEGIN_SRC elisp
+          (message "We are %d characters into this buffer."
+                   (- (point)
+                      (save-excursion
+                        (goto-char (point-min)) (point))))
+#+END_SRC
+
+*** if
+Evaluate the first argument to the function; if it is true, evaluate the second
+argument; else evaluate the third argument, if there is one. The if special form
+is called a conditional. There are other conditionals in Emacs Lisp, but if is
+perhaps the most commonly used.
+
+For example,
+
+#+BEGIN_SRC elisp
+          (if (= 22 emacs-major-version)
+              (message "This is version 22 Emacs")
+            (message "This is not version 22 Emacs"))
+#+END_SRC
+
+*** <  >  <=  >=
+The < function tests whether its first argument is smaller than its second
+argument. A corresponding function, >, tests whether the first argument is
+greater than the second. Likewise, <= tests whether the first argument is less
+than or equal to the second and >= tests whether the first argument is greater
+than or equal to the second. In all cases, both arguments must be numbers or
+markers (markers indicate positions in buffers).
+
+*** =
+
+The = function tests whether two arguments, both numbers or markers, are equal.
+
+*** equal  eq
+Test whether two objects are the same. ~equal~ uses one meaning of the word
+“same” and ~eq~ uses another: equal returns true if the two objects have a
+similar structure and contents, such as two copies of the same book. On the
+other hand, eq, returns true if both arguments are actually the same object.
+
+*** string<  string-lessp  string=  string-equal
+The string-lessp function tests whether its first argument is smaller than the
+second argument. A shorter, alternative name for the same function (a defalias)
+is string<. The arguments to string-lessp must be strings or symbols; the
+ordering is lexicographic, so case is significant. The print names of symbols
+are used instead of the symbols themselves.
+
+An empty string, ‘""’, a string with no characters in it, is smaller than any
+string of characters.
+
+string-equal provides the corresponding test for equality. Its shorter,
+alternative name is string=. There are no string test functions that correspond
+to >, >=, or <=.
+
+*** message
+Print a message in the echo area. The first argument is a string that can
+contain ‘%s’, ‘%d’, or ‘%c’ to print the value of arguments that follow
+the string. The argument used by ‘%s’ must be a string or a symbol; the
+argument used by ‘%d’ must be a number. The argument used by ‘%c’ must be an
+ascii code number; it will be printed as the character with that ascii code.
+(Various other %-sequences have not been mentioned.)
+*** setq  set
+The setq function sets the value of its first argument to the value of the
+second argument. The first argument is automatically quoted by setq. It does the
+same for succeeding pairs of arguments. Another function, set, takes only two
+arguments and evaluates both of them before setting the value returned by its
+first argument to the value returned by its second argument.
+
+*** buffer-name
+Without an argument, return the name of the buffer, as a string.
+*** buffer-size
+Return the number of characters in the current buffer.
+*** buffer-file-name
+Without an argument, return the name of the file the buffer is visiting.
+*** current-buffer
+Return the buffer in which Emacs is active; it may not be the buffer that is visible on the screen.
+*** other-buffer
+Return the most recently selected buffer (other than the buffer passed to
+other-buffer as an argument and other than the current buffer).
+*** switch-to-buffer
+Select a buffer for Emacs to be active in and display it in the current window
+so users can look at it. Usually bound to C-x b.
+*** set-buffer
+Switch Emacs's attention to a buffer on which programs will run. Don't alter
+what the window is showing.
+*** point
+Return the value of the current position of the cursor, as an integer counting
+the number of characters from the beginning of the buffer.
+*** point-min
+Return the minimum permissible value of point in the current buffer. This is 1,
+unless narrowing is in effect.
+*** point-max
+Return the value of the maximum permissible value of point in the current
+buffer. This is the end of the buffer, unless narrowing is in effect.
+
+** elisp snippets
+#+BEGIN_SRC elisp
+  ;; if or not identical content of two string
+  (string= "abc" "abc")
+
+  ;; chars concatenate to string
+  ;; emacs 中表示 char 不是用 'xxx' 而是用 ?xxx
+  (string ?l ?b ?c ?.)
+
+  ;; define variable and initial value
+  (setq count 1)
+
+  ;; print somthing in elisp
+  ;; message 只能打印字符串
+  ;; print 可以用来打印对象/变量
+  (message "你好")
+  (print buf)
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; use to produce org file, named in order of number.
+(while (< count 24)
+  (find-file (concat "ML_UCB_CS189_lec"
+                     (number-to-string (+ count 1))
+                     ".org"))
+  (setq count (1+ count)))
+#+END_SRC
+
+#+BEGIN_SRC elisp
+;; There are a number of macros called with-SOMETHING to execute code with
+;; different settings (such as the current buffer) and restore the settings when
+;; the code exits (for any reason, whether it's normal exit or an exception).
+(with-current-buffer "current_buffer_name.el"
+  (goto-char 42)
+  (insert "hello"))
+
+;; 注意这里是 buffer 全名, 也就是通过 spc b b 或者 spc b i 所看到的名字
+;; 对于同名文件而言, buffer_name = file_name + "<directory_name>"
+(with-current-buffer "xxx.el<UCB_CS189_Intro2ML>"
+  (goto-char 42)
+  (insert "hello"))
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; 寻找某个文件,并返回其 buffer
+;; find-file-noselect 函数接受文件名参数; 返回该文件的 buffer
+;; 注意理解 emacs 中 file 与 buffer 的关系:
+;; file 是内容, buffer 是盛放内容的容器,也可以理解为内容的缓存.
+(setq buf (find-file-noselect "yiddi.org"))
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(when buf
+  (goto-char 0)
+  (insert "hello"))
+
+(append-to-file "hello" 0 "yiddi.org")
+
+(f-write-text "some string" 'utf-8 "yiddi.org")
+
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+(setq orgheader "\#+TITLE:       lec-01 Regression case study\n\#+AUTHOR:      yiddi\n\#+EMAIL:       yiddishkop\@gmail.com\n\#+DATE:        2017-06-22 五\n\#+URI:         /blog/%y/%m/%d/LiHongYi_ML_lec01_regression\n\#+TAGS:        ml, dl\n\#+LANGUAGE:    en\n\#+OPTIONS:     H:3 num:nil \\n:nil ::t |:t ^:nil -:nil f:t *:t <:t\n")
+
+(setq count 1)
+(while (< count 24)
+  (set-buffer (find-file-noselect
+               (concat "ML_UCB_CS189_lec"
+                       (number-to-string count)
+                       ".org")))
+  (goto-char 0)
+  (insert orgheader)
+  (setq count (1+ count))
+  )
+;; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(progn
+  (set-buffer (find-file-noselect "yiddi.org"))
+  (goto-char 0)
+  (insert orgheader))
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(setq dddstring (with-temp-buffer
+                  (insert-file-contents "dd.txt")
+                  (buffer-string)))
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; example of printing to a temp buffer
+;; prints all file path ending in html
+
+(require 'find-lisp)
+(with-output-to-temp-buffer "*my output*"
+  (mapc
+   (lambda (x)
+     (print x))
+   (find-lisp-find-files
+    "/home/xah/web/ergoemacs_org/emacs/"
+    "\\.html$"))
+  (switch-to-buffer "*my output*"))
+
+#+END_SRC
+
+** Elisp: Property List, 相当于 字典(键值对)
+
+[copy from ego elisp]
+
+By Xah Lee. Date: 2016-09-15. Last updated: 2017-06-17.
+
+*** What's Property List
+
+Property list (in short, plist) is a list, but to be interpreted as list of
+pairs, like this:
+
+#+BEGIN_QUOTE
+  '(key1 val1 key2 val2 …)
+
+  *Key should be lisp symbols, value can be any lisp object*.
+#+END_QUOTE
+
+
+Property list is not supposed to have duplicate keys, and should always have
+even length.
+
+*** Use of Property List
+Property List is used as a simplest form of key/value pairs. For example, for
+less than 50 items.
+
+Property list is just a normal list. There's no dedicated function to lookup by
+value as alist can.
+
+Property list is used extensively in emacs.
+
+The 2 major use of property list are:
+
+Symbol's property list. Each symbol, is associated with a property list. Used
+primarily to store info related to the symbol, such as compiler info, but can be
+anything. Text Properties. Any character or string in a buffer, can have a
+property list, used to store color, special keyboard shortcut, etc. [see Elisp:
+Text Properties] Property list isn't a generic data structure. If you have for
+example more than 100 items, you probably should use alist instead.
+
+*** plist-get plist-member
+When accessing property list, existence of key is checked with eq.
+
+Here are generic functions for plist.
+
+#+BEGIN_EXAMPLE
+plist-get : 按照某个 key 索引 value
+语法: (plist-get <property list obj> <key>) =return=> <value>
+
+plist-member : 判断 plist 中是否含有该 key
+语法: (plist-member <property list obj> <key>) =return=> <boolean>
+#+END_EXAMPLE
+
+
+#+BEGIN_SRC elisp
+;; get a value of a key in property list
+(plist-get '(x 1 y 2) 'y) ; 2
+
+;; non existent key returns nil
+(plist-get '(x 1 y 2) 'b) ; nil
+Set a key's value:
+
+(setq xx '(a 1 b 2))
+
+;; set value to a existing key
+(setq xx
+      (plist-put xx 'b 3))
+;; must use setq, because plist-put works by return value
+
+(plist-get xx 'b) ; 3
+
+;; set value to new key
+(setq xx
+      (plist-put xx 'd 3))
+
+(plist-get xx 'd) ; 3
+check if a key exist:
+
+(setq xx '(a 1 b 2))
+
+;; check if a key exist
+(plist-member xx 'b)
+#+END_SRC
+
+** Elisp: Map / Loop Thru List / Vector
+By Xah Lee. Date: 2016-08-30. Last updated: 2016-10-31.
+
+*** Map: mapcar
+
+Typical way to go thru a sequence is using mapcar. Note that it returns a list,
+even if input is a vector. [see Elisp: Sequence: List, Array]
+
+#+BEGIN_QUOTE
+~(mapcar FUNCTION SEQUENCE)~
+
+→ Apply FUNCTION to each element of SEQUENCE, and make a list of the results.
+The result is a list, with same length as SEQUENCE. SEQUENCE may be a list, a
+vector, a bool-vector, or a string.
+#+END_QUOTE
+
+#+BEGIN_SRC elisp
+  ;; add 1 to each vector element
+  (mapcar '1+ [3 4 5] ) ; (4 5 6)
+
+  ;; add one to each list element
+  (mapcar '1+ '(3 4 5)) ; (4 5 6)
+#+END_SRC
+
+~1+~ is a lisp function. It adds 1 to argument and returns it. For example,
+(1+ 2) returns 3.
+
+#+BEGIN_QUOTE
+To use a function in mapcar, you need to quote the function's name.
+
+1+ is a function, so we quote it and have '1+ or (quote 1+)
+#+END_QUOTE
+
+Here's another example.
+
+#+BEGIN_SRC elisp
+; take the 1st element of each
+(mapcar 'car '((1 2) (3 4) (5 6))) ; (1 3 5)
+#+END_SRC
+
+list and vector are sequence
+
+In emacs lisp, list and vector types are both considered sequences.
+
+Many functions work with sequences. (that is, argument can be list or vector)
+
+*** mapcar with lambda
+mapcar is most commonly used with lambda. Here's a example:
+
+#+BEGIN_SRC elisp
+  ;; get first element of each row
+  (mapcar
+   (lambda (x) (elt x 0)); fn to handle sequence
+   [[1 2] [3 4]]; sequence
+   ); ⇒ (1 3)
+#+END_SRC
+lambda means function, often known as “anonymous function”. It let you define
+a function in the middle of your code.
+
+The form is ~(lambda (args) body)~.
+
+For example, ~(lambda (x y) (+ x y))~ is a function that takes two arguments, x
+and y, and returns their sum.
+
+More examples with lambda:
+
+#+BEGIN_SRC elisp
+  ; add one to each list member
+  (mapcar
+   (lambda (x) (+ x 1))
+   (list 1 2 3 4)
+  ) ; (2 3 4 5)
+
+  ;; take the 2nd element of each
+  (mapcar (lambda (x) (nth 1 x))
+          '((1 2) (3 4) (5 6))) ; (2 4 6)
+#+END_SRC
+
+*** mapc
+If you don't need map to return the sequence, use mapc.
+
+#+BEGIN_QUOTE
+mapc → like mapcar, but returns nil.
+#+END_QUOTE
+
+#+BEGIN_SRC elisp
+  ;; apply a file processing function to a list of files
+  (mapc 'my-update-html-footer
+        (list
+         "~/web/file1.html"
+         "~/web/file2.html"
+         "~/web/file3.html"
+         ))
+
+  ;; example of mapc on vector
+  (mapc
+   (lambda (x)
+     (insert (number-to-string (aref x 0))))
+   [[1 2] [3 4]] )
+
+  ;; insert first element of each row into buffer
+  ;; (it inserts 13)
+  ;; returns nil
+#+END_SRC
+
+*** dolist
+#+BEGIN_QUOTE
+~(dolist (VAR LIST) BODY)~
+获取从[xxxx]获取[值],并应用在
+
+~(dolist (VAR LIST) BODY)~
+→ Loop over a list. Evaluate BODY with VAR bound to each element from LIST,
+returns nil.
+
+~(dolist (VAR LIST RESULT) BODY)~
+→ returns RESULT.
+#+END_QUOTE
+
+
+#+BEGIN_EXAMPLE
+          each time give a value
+          +-----<----+
+          |          |
+          v          |
+(dolist (VAR       LIST)          BODY)
+          |                        ^
+          |                        |
+          +----->--------->--------+
+          var will be used in body to
+          compute sth
+
+#+END_EXAMPLE
+
+
+#+BEGIN_SRC elisp
+(let (
+      (xlist (number-sequence 97 122)) ;; list 97 to 122
+      )
+  (dolist (n xlist) (insert n)))
+;; inserts
+;; abcdefghijklmnopqrstuvwxyz
+#+END_SRC
+
+The major difference between ~dolist~ and ~mapc~ is that dolist uses expression,
+mapc uses a function. Also, dolist work with list only, mapc works with list and
+vectors.
+
+*** dotimes
+dotimes is useful when you want to go thru a list by a increasing index.
+
+#+BEGIN_QUOTE
+~(dotimes (VAR COUNT) BODY …)~
+
+→ Loop a certain number of times. Evaluate BODY with VAR bound to successive
+integers running from 0, inclusive, to COUNT, exclusive. Returns nil
+
+~(dotimes (VAR COUNT RESULT) BODY …)~
+
+→ After loop, evaluate RESULT to get the return value.
+#+END_QUOTE
+
+#+BEGIN_SRC elisp
+(dotimes (i 4)
+  (insert (number-to-string i)))
+;; inserts "0123", returns nil
+(let ((v [3 4 5]))
+  (dotimes (i (length v))
+    (insert
+     (number-to-string
+      (elt v i))))) ; inserts 345
+#+END_SRC
+
+*** while Loop
+Another common form to loop thru a list is using the while function. In each
+iteration, pop is used to reduce the list.
+
+#+BEGIN_SRC elisp
+(let ((mylist '(a b c)))
+  (while mylist
+    (message "%s" (pop mylist))
+    (sleep-for 1)))
+#+END_SRC
+
+Example with vector:
+
+#+BEGIN_SRC elisp
+(setq v [3 4 5])
+(setq i 0)
+
+(while (< i (length v))
+  (insert (format "%d" (elt v i)))
+  (setq i (1+ i))) ; inserts "345"
+#+END_SRC
