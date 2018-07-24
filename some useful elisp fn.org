@@ -10,6 +10,24 @@ similar functions that have not been mentioned yet.
     #+BEGIN_SRC elisp
     (insert "your cursor here~~~")
     #+END_SRC
+
+*** buffer-substring
+    #+BEGIN_SRC elisp
+      ;; get substring of current buffer from point 1 to point 10
+      ;; NOTE that point count start from 1
+      (progn
+        (set-buffer (find-file-noselect "/home/yiddi/git_repos/on_ml_wushanghong/ml/labs/01_Scientific-Python-101/01_Scientific-Python_101.org"))
+        (buffer-substring 1 10)
+        )
+    #+END_SRC
+
+*** concat
+    #+BEGIN_SRC elisp
+      (find-file (concat "ML_UCB_CS189_lec"
+                         (number-to-string (+ count 1))
+                         ".org"))
+    #+END_SRC
+
 *** car cdr elt nth aref append list
 #+BEGIN_SRC elisp
   ;; 取首元素
@@ -70,10 +88,17 @@ argument; in that case, the output is printed in the current buffer. This
 command is normally bound to C-x C-e.
 
 *** defun
-Define function. This macro has up to five parts: the name, a template for the
-arguments that will be passed to the function, documentation, an optional
-interactive declaration, and the body of the definition. For example, in Emacs
-the function definition of dired-unmark-all-marks is as follows.
+Define function.
+
+This macro has up to five parts:
+1. the name,
+2. a template for the arguments that will be passed to the function,
+3. documentation,
+4. an optional interactive declaration,
+5. the body of the definition.
+
+For example, in Emacs the function definition of ~dired-unmark-all-marks~ is as
+follows.
 
 #+BEGIN_SRC elisp
           (defun dired-unmark-all-marks ()
@@ -82,11 +107,21 @@ the function definition of dired-unmark-all-marks is as follows.
             (dired-unmark-all-files ?\r))
 #+END_SRC
 
+*** progn
+    progn is a special form that causes each of its arguments to be evaluated in
+    sequence and then returns the value of the last one. The preceding
+    expressions are evaluated only for the side effects they perform. The values
+    produced by them are discarded.
+
+    The template for a progn expression is very simple:
+
+     (progn
+       body...)
 *** interactive
-Declare to the interpreter that the function can be used interactively. This
+Declare to the ~interpreter~ that the function can be used interactively. This
 special form may be followed by a string with one or more parts that pass the
-information to the arguments of the function, in sequence. These parts may also
-tell the interpreter to prompt for information. Parts of the string are
+information to the arguments of the function, in sequence. *These parts may also
+tell the interpreter to prompt for information*. Parts of the string are
 separated by newlines, ‘\n’. Common code characters are:
 
 - b The name of an existing buffer.
@@ -150,8 +185,46 @@ markers (markers indicate positions in buffers).
 
 *** =
 
-The = function tests whether two arguments, both numbers or markers, are equal.
+The ~=~ function tests whether two arguments, both numbers or markers, are equal.
 
+*** ------- external command related -------
+*** shell-command shell-command-to-string  call-process
+
+    shell-command-to-string is just a convenience wrapper around more
+    fundamental process functions.
+
+    A good function to use for simple synchronous processes is call-process.
+    *Call process will return the exit code* from the process and you can
+    redirect all output to a buffer that you can use buffer-string on to get the
+    text.
+
+    Here's an example:
+
+    #+BEGIN_SRC elisp
+      ;; this single expression returns a list of two elements, the process
+      ;; exit code, and the process output
+      (with-temp-buffer
+        (list (call-process "ls" nil (current-buffer) nil "-h" "-l")
+              (buffer-string)))
+    #+END_SRC
+
+
+    #+BEGIN_SRC elisp
+      ;; we could wrap it up nicely:
+      (defun process-exit-code-and-output (program &rest args)
+        "Run PROGRAM with ARGS and return the exit code and output in a list."
+        (with-temp-buffer
+          (list (apply 'call-process program nil (current-buffer) nil args)
+                (buffer-string))))
+    #+END_SRC
+
+    #+BEGIN_SRC elisp
+    (process-exit-code-and-output "ls" "-h" "-l" "-a") ;; => (0 "-r-w-r-- 1 ...")
+    #+END_SRC
+
+    Another note: if you end up wanting to do anything more complex with
+    processes, you should read the documentation for start-process, and how to
+    use sentinals and filters, it is really a powerful api.
 *** equal  eq
 Test whether two objects are the same. ~equal~ uses one meaning of the word
 “same” and ~eq~ uses another: equal returns true if the two objects have a
@@ -179,6 +252,17 @@ the string. The argument used by ‘%s’ must be a string or a symbol; the
 argument used by ‘%d’ must be a number. The argument used by ‘%c’ must be an
 ascii code number; it will be printed as the character with that ascii code.
 (Various other %-sequences have not been mentioned.)
+*** type-of
+          (type-of 1)
+               ⇒ integer
+          (type-of 'nil)
+               ⇒ symbol
+          (type-of '())    ; () is nil.
+               ⇒ symbol
+          (type-of '(x))
+               ⇒ cons
+          (type-of (record 'foo))
+               ⇒ foo
 *** setq  set
 The setq function sets the value of its first argument to the value of the
 second argument. The first argument is automatically quoted by setq. It does the
@@ -213,120 +297,524 @@ unless narrowing is in effect.
 Return the value of the maximum permissible value of point in the current
 buffer. This is the end of the buffer, unless narrowing is in effect.
 
-** elisp snippets
-#+BEGIN_SRC elisp
-  ;; if or not identical content of two string
-  (string= "abc" "abc")
+** 2.6 Type Predicates
+   你经常见到的 ~xxxxp~ 命名的函数,都是 type predictate 函数, 目的是检测某个变量
+   是否是某个指定类型
 
-  ;; chars concatenate to string
-  ;; emacs 中表示 char 不是用 'xxx' 而是用 ?xxx
-  (string ?l ?b ?c ?.)
+The Emacs Lisp interpreter itself does not perform type checking on the actual
+arguments passed to functions when they are called. It could not do so, since
+function arguments in Lisp do not have declared data types, as they do in other
+programming languages. It is therefore up to the individual function to test
+whether each actual argument belongs to a type that the function can use.
 
-  ;; define variable and initial value
-  (setq count 1)
+All built-in functions do check the types of their actual arguments when
+appropriate, and signal a wrong-type-argument error if an argument is of the
+wrong type. For example, here is what happens if you pass an argument to + that
+it cannot handle:
 
-  ;; print somthing in elisp
-  ;; message 只能打印字符串
-  ;; print 可以用来打印对象/变量
-  (message "你好")
-  (print buf)
-#+END_SRC
+     (+ 2 'a)
+          error--> Wrong type argument: number-or-marker-p, a
+
+If you want your program to handle different types differently, you must do
+explicit type checking. The most common way to check the type of an object
+is to call a type predicate function. Emacs has a type predicate for each
+type, as well as some predicates for combinations of types.
+
+A type predicate function takes one argument; it returns t if the argument
+belongs to the appropriate type, and nil otherwise. Following a general Lisp
+convention for predicate functions, most type predicates' names end with ‘p’.
+
+Here is an example which uses the predicates listp to check for a list and
+symbolp to check for a symbol.
+
+     (defun add-on (x)
+       (cond ((symbolp x)
+              ;; If X is a symbol, put it on LIST.
+              (setq list (cons x list)))
+             ((listp x)
+              ;; If X is a list, add its elements to LIST.
+              (setq list (append x list)))
+             (t
+              ;; We handle only symbols and lists.
+              (error "Invalid argument %s in add-on" x))))
+Here is a table of predefined type predicates, in alphabetical order, with references to further information.
+
+*** all predictate function
+atom
+See atom.
+arrayp
+See arrayp.
+bool-vector-p
+See bool-vector-p.
+booleanp
+See booleanp.
+bufferp
+See bufferp.
+byte-code-function-p
+See byte-code-function-p.
+case-table-p
+See case-table-p.
+char-or-string-p
+See char-or-string-p.
+char-table-p
+See char-table-p.
+commandp
+See commandp.
+condition-variable-p
+See condition-variable-p.
+consp
+See consp.
+custom-variable-p
+See custom-variable-p.
+floatp
+See floatp.
+fontp
+See Low-Level Font.
+frame-configuration-p
+See frame-configuration-p.
+frame-live-p
+See frame-live-p.
+framep
+See framep.
+functionp
+See functionp.
+hash-table-p
+See hash-table-p.
+integer-or-marker-p
+See integer-or-marker-p.
+integerp
+See integerp.
+keymapp
+See keymapp.
+keywordp
+See Constant Variables.
+listp
+See listp.
+markerp
+See markerp.
+mutexp
+See mutexp.
+nlistp
+See nlistp.
+number-or-marker-p
+See number-or-marker-p.
+numberp
+See numberp.
+overlayp
+See overlayp.
+processp
+See processp.
+recordp
+See recordp.
+sequencep
+See sequencep.
+string-or-null-p
+See string-or-null-p.
+stringp
+See stringp.
+subrp
+See subrp.
+symbolp
+See symbolp.
+syntax-table-p
+See syntax-table-p.
+threadp
+See threadp.
+vectorp
+See vectorp.
+wholenump
+See wholenump.
+window-configuration-p
+See window-configuration-p.
+window-live-p
+See window-live-p.
+windowp
+See windowp.
+
+*** type-of
+The most general way to check the type of an object is to call the function
+type-of. Recall that each object belongs to one and only one primitive type;
+type-of tells you which one (see Lisp Data Types). But type-of knows nothing
+about non-primitive types. In most cases, it is more convenient to use type
+predicates than type-of.
+
+— Function: type-of object
+
+This function returns a symbol naming the primitive type of object. The value is
+one of the symbols bool-vector, buffer, char-table, compiled-function,
+condition-variable, cons, finalizer, float, font-entity, font-object, font-spec,
+frame, hash-table, integer, marker, mutex, overlay, process, string, subr,
+symbol, thread, vector, window, or window-configuration. However, if object is a
+record, the type specified by its first slot is returned; Records.
+
+          (type-of 1)
+               ⇒ integer
+          (type-of 'nil)
+               ⇒ symbol
+          (type-of '())    ; () is nil.
+               ⇒ symbol
+          (type-of '(x))
+               ⇒ cons
+          (type-of (record 'foo))
+               ⇒ foo
+** 4.7 Formatting Strings
+Formatting means constructing a string by substituting computed values at
+various places in a constant string. This constant string controls how the other
+values are printed, as well as where they appear; it is called a format string.
+
+Formatting is often useful for computing messages to be displayed. In fact, the
+functions message and error provide the same formatting feature described here;
+they differ from format-message only in how they use the result of formatting.
+
+— Function: format string &rest objects
+
+This function returns a string equal to string, replacing any format
+specifications with encodings of the corresponding objects. The arguments
+objects are the computed values to be formatted.
+
+The characters in string, other than the format specifications, are copied
+directly into the output, including their text properties, if any. Any text
+properties of the format specifications are copied to the produced string
+representations of the argument objects.
+
+The output string need not be newly-allocated. For example, if x is the string
+"foo", the expressions (eq x (format x)) and (eq x (format "%s" x)) might both
+yield t.
+
+— Function: format-message string &rest objects
+
+This function acts like format, except it also converts any grave accents (`)
+and apostrophes (') in string as per the value of text-quoting-style.
+
+Typically grave accent and apostrophe in the format translate to matching curved
+quotes, e.g., "Missing `%s'" might result in "Missing ‘foo’". See Text Quoting
+Style, for how to influence or inhibit this translation.
+
+A format specification is a sequence of characters beginning with a ‘%’. Thus,
+if there is a ‘%d’ in string, the format function replaces it with the printed
+representation of one of the values to be formatted (one of the arguments
+objects). For example:
+
+     (format "The value of fill-column is %d." fill-column)
+          ⇒ "The value of fill-column is 72."
+Since format interprets ‘%’ characters as format specifications, you should never pass an arbitrary string as the first argument. This is particularly true when the string is generated by some Lisp code. Unless the string is known to never include any ‘%’ characters, pass "%s", described below, as the first argument, and the string as the second, like this:
+
+       (format "%s" arbitrary-string)
+
+Certain format specifications require values of particular types. If you supply
+a value that doesn't fit the requirements, an error is signaled.
+
+Here is a table of valid format specifications:
+
+*** symbols used to format string
+‘%s’
+
+Replace the specification with the printed representation of the object, made
+without quoting (that is, using princ, not prin1—see Output Functions). Thus,
+strings are represented by their contents alone, with no ‘"’ characters, and
+symbols appear without ‘\’ characters. If the object is a string, its text
+properties are copied into the output. The text properties of the ‘%s’ itself
+are also copied, but those of the object take priority.
+
+‘%S’
+Replace the specification with the printed representation of the object, made with quoting (that is, using prin1—see Output Functions). Thus, strings are enclosed in ‘"’ characters, and ‘\’ characters appear where necessary before special characters.
+
+‘%o’
+Replace the specification with the base-eight representation of an unsigned integer.
+
+‘%d’
+Replace the specification with the base-ten representation of a signed integer.
+
+‘%x’ ‘%X’
+Replace the specification with the base-sixteen representation of an unsigned integer. ‘%x’ uses lower case and ‘%X’ uses upper case.
+
+‘%c’
+Replace the specification with the character which is the value given.
+
+‘%e’
+Replace the specification with the exponential notation for a floating-point number.
+
+‘%f’
+Replace the specification with the decimal-point notation for a floating-point number.
+
+‘%g’
+Replace the specification with notation for a floating-point number, using either exponential notation or decimal-point notation. The exponential notation is used if the exponent would be less than −4 or greater than or equal to the precision (default: 6). By default, trailing zeros are removed from the fractional portion of the result and a decimal-point character appears only if it is followed by a digit.
+
+‘%%’
+Replace the specification with a single ‘%’. This format specification is unusual in that its only form is plain ‘%%’ and that it does not use a value. For example, (format "%% %d" 30) returns "% 30".
+Any other format character results in an ‘Invalid format operation’ error.
+
+Here are several examples, which assume the typical text-quoting-style settings:
+
+     (format "The octal value of %d is %o,
+              and the hex value is %x." 18 18 18)
+          ⇒ "The octal value of 18 is 22,
+              and the hex value is 12."
+
+     (format-message
+      "The name of this buffer is ‘%s’." (buffer-name))
+          ⇒ "The name of this buffer is ‘strings.texi’."
+
+     (format-message
+      "The buffer object prints as `%s'." (current-buffer))
+          ⇒ "The buffer object prints as ‘strings.texi’."
 
 
-#+BEGIN_SRC elisp
-;; use to produce org file, named in order of number.
-(while (< count 24)
-  (find-file (concat "ML_UCB_CS189_lec"
-                     (number-to-string (+ count 1))
-                     ".org"))
-  (setq count (1+ count)))
-#+END_SRC
+*** flag values used to format string
+By default, format specifications correspond to successive values from objects.
+Thus, the first format specification in string uses the first such value, the
+second format specification uses the second such value, and so on. Any extra
+format specifications (those for which there are no corresponding values) cause
+an error. Any extra values to be formatted are ignored.
 
-#+BEGIN_SRC elisp
-;; There are a number of macros called with-SOMETHING to execute code with
-;; different settings (such as the current buffer) and restore the settings when
-;; the code exits (for any reason, whether it's normal exit or an exception).
-(with-current-buffer "current_buffer_name.el"
-  (goto-char 42)
-  (insert "hello"))
+A format specification can have a field number, which is a decimal number
+immediately after the initial ‘%’, followed by a literal dollar sign ‘$’. It
+causes the format specification to convert the argument with the given number
+instead of the next argument. Field numbers start at 1. A format can contain
+either numbered or unnumbered format specifications but not both, except that
+‘%%’ can be mixed with numbered specifications.
 
-;; 注意这里是 buffer 全名, 也就是通过 spc b b 或者 spc b i 所看到的名字
-;; 对于同名文件而言, buffer_name = file_name + "<directory_name>"
-(with-current-buffer "xxx.el<UCB_CS189_Intro2ML>"
-  (goto-char 42)
-  (insert "hello"))
-#+END_SRC
+     (format "%2$s, %3$s, %%, %1$s" "x" "y" "z")
+          ⇒ "y, z, %, x"
 
 
-#+BEGIN_SRC elisp
-;; 寻找某个文件,并返回其 buffer
-;; find-file-noselect 函数接受文件名参数; 返回该文件的 buffer
-;; 注意理解 emacs 中 file 与 buffer 的关系:
-;; file 是内容, buffer 是盛放内容的容器,也可以理解为内容的缓存.
-(setq buf (find-file-noselect "yiddi.org"))
+After the ‘%’ and any field number, you can put certain flag characters.
 
-#+END_SRC
+The flag ‘+’ inserts a plus sign before a positive number, so that it always
+has a sign. A space character as flag inserts a space before a positive number.
+(Otherwise, positive numbers start with the first digit.) These flags are useful
+for ensuring that positive numbers and negative numbers use the same number of
+columns. They are ignored except for ‘%d’, ‘%e’, ‘%f’, ‘%g’, and if both
+flags are used, ‘+’ takes precedence.
 
-#+BEGIN_SRC elisp
-(when buf
-  (goto-char 0)
-  (insert "hello"))
+The flag ‘#’ specifies an alternate form which depends on the format in use.
+For ‘%o’, it ensures that the result begins with a ‘0’. For ‘%x’ and
+‘%X’, it prefixes the result with ‘0x’ or ‘0X’. For ‘%e’ and ‘%f’, the
+‘#’ flag means include a decimal point even if the precision is zero. For
+‘%g’, it always includes a decimal point, and also forces any trailing zeros
+after the decimal point to be left in place where they would otherwise be
+removed.
 
-(append-to-file "hello" 0 "yiddi.org")
+The flag ‘0’ ensures that the padding consists of ‘0’ characters instead of
+spaces. This flag is ignored for non-numerical specification characters like
+‘%s’, ‘%S’ and ‘%c’. These specification characters accept the ‘0’ flag,
+but still pad with spaces.
 
-(f-write-text "some string" 'utf-8 "yiddi.org")
+The flag ‘-’ causes any padding inserted by the width, if specified, to be
+inserted on the right rather than the left. If both ‘-’ and ‘0’ are present,
+the ‘0’ flag is ignored.
 
-#+END_SRC
+     (format "%06d is padded on the left with zeros" 123)
+          ⇒ "000123 is padded on the left with zeros"
+
+     (format "'%-6d' is padded on the right" 123)
+          ⇒ "'123   ' is padded on the right"
+
+     (format "The word '%-7s' actually has %d letters in it."
+             "foo" (length "foo"))
+          ⇒ "The word 'foo    ' actually has 3 letters in it."
+
+A specification can have a width, which is a decimal number that appears after
+any field number and flags. If the printed representation of the object contains
+fewer characters than this width, format extends it with padding. Any padding
+introduced by the width normally consists of spaces inserted on the left:
+
+     (format "%5d is padded on the left with spaces" 123)
+          ⇒ "  123 is padded on the left with spaces"
+If the width is too small, format does not truncate the object's printed representation. Thus, you can use a width to specify a minimum spacing between columns with no risk of losing information. In the following two examples, ‘%7s’ specifies a minimum width of 7. In the first case, the string inserted in place of ‘%7s’ has only 3 letters, and needs 4 blank spaces as padding. In the second case, the string "specification" is 13 letters wide but is not truncated.
+
+     (format "The word '%7s' has %d letters in it."
+             "foo" (length "foo"))
+          ⇒ "The word '    foo' has 3 letters in it."
+     (format "The word '%7s' has %d letters in it."
+             "specification" (length "specification"))
+          ⇒ "The word 'specification' has 13 letters in it."
+
+All the specification characters allow an optional precision after the field
+number, flags and width, if present. The precision is a decimal-point ‘.’
+followed by a digit-string. For the floating-point specifications (‘%e’ and
+‘%f’), the precision specifies how many digits following the decimal point to
+show; if zero, the decimal-point itself is also omitted. For ‘%g’, the
+precision specifies how many significant digits to show (significant digits are
+the first digit before the decimal point and all the digits after it). If the
+precision of %g is zero or unspecified, it is treated as 1. For ‘%s’ and
+‘%S’, the precision truncates the string to the given width, so ‘%.3s’ shows
+only the first three characters of the representation for object. For other
+specification characters, the effect of precision is what the local library
+functions of the printf family produce.
+** 7.2.1 Find the Length of a List: length
+You can find out how many elements there are in a list by using the Lisp function length, as in the following examples:
+
+     (length '(buttercup))
+          ⇒ 1
+
+     (length '(daisy buttercup))
+          ⇒ 2
+
+     (length (cons 'violet '(daisy buttercup)))
+          ⇒ 3
+In the third example, the cons function is used to construct a three element list which is then passed to the length function as its argument.
+
+We can also use length to count the number of elements in an empty list:
+
+     (length ())
+          ⇒ 0
+As you would expect, the number of elements in an empty list is zero.
+
+An interesting experiment is to find out what happens if you try to find the length of no list at all; that is, if you try to call length without giving it an argument, not even an empty list:
+
+     (length )
+What you see, if you evaluate this, is the error message
+
+     Lisp error: (wrong-number-of-arguments length 0)
+This means that the function receives the wrong number of arguments, zero, when it expects some other number of arguments. In this case, one argument is expected, the argument being a list whose length the function is measuring. (Note that one list is one argument, even if the list has many elements inside it.)
+
+The part of the error message that says ‘length’ is the name of the function.
+** 25.9.1 File Name Components
+The operating system groups files into directories. To specify a file, you must
+specify the directory and the file's name within that directory. Therefore,
+Emacs considers a file name as having two main parts: the directory name part,
+and the nondirectory part (or file name within the directory). Either part may
+be empty. Concatenating these two parts reproduces the original file name.
+
+On most systems, the directory part is everything up to and including the last
+slash (backslash is also allowed in input on MS-DOS or MS-Windows); the
+nondirectory part is the rest.
+
+For some purposes, the nondirectory part is further subdivided into the name
+proper and the version number. On most systems, only backup files have version
+numbers in their names.
+
+*** 获取文件夹名
+— Function: file-name-directory filename
+
+This function returns the directory part of filename, as a directory name (see
+Directory Names), or nil if filename does not include a directory part.
+
+On GNU and other POSIX-like systems, a string returned by this function always
+ends in a slash. On MS-DOS it can also end in a colon.
+
+          (file-name-directory "lewis/foo")  ; GNU example
+               ⇒ "lewis/"
+          (file-name-directory "foo")        ; GNU example
+               ⇒ nil
+
+*** 获取版本名,去掉版本名
+    这应该是 emacs 系统下独有的命名
+
+— Function: file-name-nondirectory filename
+
+This function returns the nondirectory part of filename.
+
+          (file-name-nondirectory "lewis/foo")
+               ⇒ "foo"
+          (file-name-nondirectory "foo")
+               ⇒ "foo"
+          (file-name-nondirectory "lewis/")
+               ⇒ ""
+
+— Function: file-name-sans-versions filename &optional keep-backup-version
+
+This function returns filename with any file version numbers, backup version
+numbers, or trailing tildes discarded.
+
+If keep-backup-version is non-nil, then true file version numbers understood as
+such by the file system are discarded from the return value, but backup version
+numbers are kept.
+
+          (file-name-sans-versions "~rms/foo.~1~")
+               ⇒ "~rms/foo"
+          (file-name-sans-versions "~rms/foo~")
+               ⇒ "~rms/foo"
+          (file-name-sans-versions "~rms/foo")
+               ⇒ "~rms/foo"
+
+*** 获取扩展名,去掉扩展名
+— Function: file-name-extension filename &optional period
+
+This function returns filename's final extension, if any, after applying
+file-name-sans-versions to remove any version/backup part. The extension, in a
+file name, is the part that follows the last ‘.’ in the last name component
+(minus any version/backup part).
+
+This function returns nil for extensionless file names such as foo. It returns
+"" for null extensions, as in foo.. If the last component of a file name begins
+with a ‘.’, that ‘.’ doesn't count as the beginning of an extension. Thus,
+.emacs's extension is nil, not ‘.emacs’.
+
+If period is non-nil, then the returned value includes the period that delimits
+the extension, and if filename has no extension, the value is "".
+
+— Function: file-name-sans-extension filename
+
+This function returns filename minus its extension, if any. The version/backup
+part, if present, is only removed if the file has an extension. For example,
+
+          (file-name-sans-extension "foo.lose.c")
+               ⇒ "foo.lose"
+          (file-name-sans-extension "big.hack/foo")
+               ⇒ "big.hack/foo"
+          (file-name-sans-extension "/my/home/.emacs")
+               ⇒ "/my/home/.emacs"
+          (file-name-sans-extension "/my/home/.emacs.el")
+               ⇒ "/my/home/.emacs"
+          (file-name-sans-extension "~/foo.el.~3~")
+               ⇒ "~/foo"
+          (file-name-sans-extension "~/foo.~3~")
+               ⇒ "~/foo.~3~"
+
+Note that the ‘.~3~’ in the two last examples is the backup part, not an
+extension.
+
+*** 直接获取基本名
+— Function: file-name-base &optional filename
+
+This function is the composition of file-name-sans-extension and
+file-name-nondirectory. For example,
+
+          (file-name-base "/my/home/foo.c")
+              ⇒ "foo"
+The filename argument defaults to buffer-file-name.
+*** file-name-directory  and  file-name-base
+        #+BEGIN_SRC elisp
+      (file-name-base (car (directory-files (concat labdir "01_Scientific-Python-101") t "html")))
+      "01_Scientific-Python-101"
+
+      (file-name-directory (car (directory-files (concat labdir "01_Scientific-Python-101") t "html")))
+      "/home/yiddi/git_repos/on_ml_wushanghong/ml/labs/01_Scientific-Python-101/"
+    #+END_SRC
+
+** 34.6.1 Replacing the Text that Matched
+This function replaces all or part of the text matched by the last search. It works by means of the match data.
 
 
-#+BEGIN_SRC elisp
-;; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-(setq orgheader "\#+TITLE:       lec-01 Regression case study\n\#+AUTHOR:      yiddi\n\#+EMAIL:       yiddishkop\@gmail.com\n\#+DATE:        2017-06-22 五\n\#+URI:         /blog/%y/%m/%d/LiHongYi_ML_lec01_regression\n\#+TAGS:        ml, dl\n\#+LANGUAGE:    en\n\#+OPTIONS:     H:3 num:nil \\n:nil ::t |:t ^:nil -:nil f:t *:t <:t\n")
+— Function: replace-match replacement &optional fixedcase literal string subexp
+(replace-match text FIXEDCASE LITERAL STRING SUBEXP)
+This function performs a replacement operation on a buffer or string.
 
-(setq count 1)
-(while (< count 24)
-  (set-buffer (find-file-noselect
-               (concat "ML_UCB_CS189_lec"
-                       (number-to-string count)
-                       ".org")))
-  (goto-char 0)
-  (insert orgheader)
-  (setq count (1+ count))
-  )
-;; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+If you did the last search in a buffer, you should omit the string argument or specify nil for it, and make sure that the current buffer is the one in which you performed the last search. Then this function edits the buffer, replacing the matched text with replacement. It leaves point at the end of the replacement text.
 
-#+END_SRC
+If you performed the last search on a string, pass the same string as string. Then this function returns a new string, in which the matched text is replaced by replacement.
 
-#+BEGIN_SRC elisp
-(progn
-  (set-buffer (find-file-noselect "yiddi.org"))
-  (goto-char 0)
-  (insert orgheader))
+If fixedcase is non-nil, then replace-match uses the replacement text without case conversion; otherwise, it converts the replacement text depending upon the capitalization of the text to be replaced. If the original text is all upper case, this converts the replacement text to upper case. If all words of the original text are capitalized, this capitalizes all the words of the replacement text. If all the words are one-letter and they are all upper case, they are treated as capitalized words rather than all-upper-case words.
 
-#+END_SRC
+If literal is non-nil, then replacement is inserted exactly as it is, the only alterations being case changes as needed. If it is nil (the default), then the character ‘\’ is treated specially. If a ‘\’ appears in replacement, then it must be part of one of the following sequences:
 
-#+BEGIN_SRC elisp
-(setq dddstring (with-temp-buffer
-                  (insert-file-contents "dd.txt")
-                  (buffer-string)))
-#+END_SRC
+‘\&’
+This stands for the entire text being replaced.
+‘\n’, where n is a digit
+This stands for the text that matched the nth subexpression in the original regexp. Subexpressions are those expressions grouped inside ‘\(...\)’. If the nth subexpression never matched, an empty string is substituted.
+‘\\’
+This stands for a single ‘\’ in the replacement text.
+‘\?’
 
+This stands for itself (for compatibility with replace-regexp and related commands; see Regexp Replace).
 
-#+BEGIN_SRC elisp
-;; example of printing to a temp buffer
-;; prints all file path ending in html
+Any other character following ‘\’ signals an error.
 
-(require 'find-lisp)
-(with-output-to-temp-buffer "*my output*"
-  (mapc
-   (lambda (x)
-     (print x))
-   (find-lisp-find-files
-    "/home/xah/web/ergoemacs_org/emacs/"
-    "\\.html$"))
-  (switch-to-buffer "*my output*"))
+The substitutions performed by ‘\&’ and ‘\n’ occur after case conversion, if any. Therefore, the strings they substitute are never case-converted.
 
-#+END_SRC
+If subexp is non-nil, that says to replace just subexpression number subexp of the regexp that was matched, not the entire match. For example, after matching ‘foo \(ba*r\)’, calling replace-match with 1 as subexp means to replace just the text that matched ‘\(ba*r\)’.
 
 ** Elisp: Property List, 相当于 字典(键值对)
 
@@ -413,7 +901,6 @@ check if a key exist:
 
 ** Elisp: Map / Loop Thru List / Vector
 By Xah Lee. Date: 2016-08-30. Last updated: 2016-10-31.
-
 *** Map: mapcar
 
 Typical way to go thru a sequence is using mapcar. Note that it returns a list,
@@ -603,4 +1090,506 @@ Example with vector:
 (while (< i (length v))
   (insert (format "%d" (elt v i)))
   (setq i (1+ i))) ; inserts "345"
+#+END_SRC
+** Elisp: Buffer and File Functions
+By Xah Lee. Date: 2016-09-23. Last updated: 2018-02-22.
+Here's the most useful functions for file and buffer.
+
+You should memorize these by heart.
+
+*** ---- Buffers ----
+Functions that act on the buffer. Most buffer functions assume the current
+buffer if no argument is given. Some requires a argument. The argument can
+usually be a buffer's name, or a buffer object.
+
+*** buffer-name
+#+BEGIN_QUOTE
+buffer-name → return the name of current buffer.
+#+END_QUOTE
+
+;; return the name of current buffer
+(buffer-name)
+
+*** buffer-file-name
+#+BEGIN_QUOTE
+buffer-file-name → return the full path of the file, or nil if not a file.
+#+END_QUOTE
+
+;; return the full path of the file
+(buffer-file-name)
+
+*** kill-buffer
+#+BEGIN_QUOTE
+kill-buffer → close a given buffer.
+#+END_QUOTE
+;; close a given buffer
+(kill-buffer myBuffer)
+
+*** with-temp-buffer
+#+BEGIN_QUOTE
+with-temp-buffer → Use temp buffer.
+#+END_QUOTE
+;; use a temp buffer to manipulate string
+(with-temp-buffer
+  (insert myStr)
+  ;; manipulate the string here
+  (buffer-string) ; get result
+)
+(info "(elisp) Buffers")
+
+*** ---- Switch Buffer ----
+*** set-buffer
+#+BEGIN_QUOTE
+set-buffer → switch to a given buffer temporarily. (does not make the buffer visible.)
+#+END_QUOTE
+
+注意: set-buffer 会引起 emcas 编辑界面切到指定的 buffer
+;; switch to a given buffer
+(set-buffer myBuffer)
+
+*** switch-to-buffer
+#+BEGIN_QUOTE
+switch-to-buffer → switch to a given buffer. Avoid using this in lisp code.
+#+END_QUOTE
+
+(switch-to-buffer myBuffer)
+
+*** ---- Files ----
+{Open, Append, Write} Files
+
+*** find-file
+;; open a file (returns a buffer)
+(find-file "~/test.txt")
+
+*** save-buffer (保存)
+;; save current buffer (write to the associated file)
+(save-buffer)
+
+*** write-file (另存为)
+;; like “Save As”. Save current buffer, close it, and open the new saved
+(write-file "~/new.txt")
+
+*** append-to-file
+;; append text between positions 100 to 200 to file
+(append-to-file 100 200 "~/test.txt")
+
+*** kill-buffer
+;; close a buffer
+(kill-buffer myBuffName)
+** Elisp: Region, Active Region
+By Xah Lee. Date: 2008-06-30. Last updated: 2018-02-15.
+
+Here's how to work with {region, active region, transient-mark-mode} in emacs lisp.
+
+*** What's Mark?
+#+BEGIN_QUOTE
+~mark~
+
+→ A position the user can set, for the purpose of making a text selection.
+#+END_QUOTE
+
+Alt+x set-mark-command 【Ctrl+Space】 to set a mark.
+
+In lisp code, you should call push-mark or set-mark.
+
+*** What's Region?
+#+BEGIN_QUOTE
+region → The last marked position to the current cursor position.
+#+END_QUOTE
+
+Once a user sets a mark in a buffer, a region exists. So, almost always, there
+exists a region in a buffer.
+
+You can get the positions of region by the functions {region-beginning,
+region-end}.
+
+(defun ff ()
+  "sample code to show region begin/end positions"
+  (interactive)
+  (message "begin at %s\nend at %s"
+           (region-beginning)
+           (region-end)))
+
+By convention, commands ending in the word “-region” acts on the region. For
+example:
+
+- kill-region
+- comment-region
+- fill-region
+- indent-region.
+
+*** What's Active Region?
+Because a region exists once a user sets a mark, and always having a section of
+text highlighted to the cursor position is annoying, so there's a new concept of
+Active Region.
+
+A Region is Active when the variable mark-active is true. (in elisp, nil and ()
+are false, everything else is true. True is represented by t by convention.)
+
+*** Highlighting of Region: transient-mark-mode
+Emacs has a minor mode called ~transient-mark-mode~. When on, it will highlight
+the region when it's active.
+
+variable transient-mark-mode → when true, transient-mark-mode is on.
+
+transient-mark-mode is introduced in emacs 19 (released in 1994).
+
+transient-mark-mode is on by default since Emacs 23.1 (released in 2009)
+
+*** When Should a Region be Active?
+Typically, when ~set-mark-command~ is called, *the region becomes active*
+(highlighted). When a command is called, it typically set the region status to
+inactive.
+
+This means, when you set mark using the keyboard or the mouse, text selection
+become highlighted, then after you called some command, the region returns to
+inactive again (and the highlighting goes away).
+
+*** What's Text Selection?
+Emacs's concept of “active region” is practically the same as the modern term
+“Text Selection”.
+
+#+BEGIN_QUOTE
+*Text Selection = when region is active, and is not empty.*
+#+END_QUOTE
+
+#+BEGIN_QUOTE
+When you want your command to act on a text selection when there is one, check
+on ~use-region-p~.
+#+END_QUOTE
+
+#+BEGIN_SRC elisp
+(defun my-is-region-active ()
+  "print whether region is active."
+  (interactive)
+  (if (use-region-p)
+      (message "region active")
+    (message "region not active")))
+#+END_SRC
+
+The function use-region-p basically checks 3 things:
+
+1. transient-mark-mode is on.
+2. mark-active is true.
+3. region isn't empty by checking use-empty-active-region.
+
+*** Create Active Region
+The following example sets a mark, and activates the region.
+
+(defun my-select-line ()
+  "Select current line."
+  (interactive)
+  (let (p1 p2)
+    (setq p1 (line-beginning-position))
+    (setq p2 (line-end-position))
+    (goto-char p1)
+    (push-mark p2)
+    (setq mark-active t)))
+
+Note: Emacs commands should not change/modify/activate region, unless you have good reason. Because, it's confusing to user when a command changes his text selection.
+
+*** Pass Region Begin/End Positions to Function Arguments
+Let your function have 2 parameters, then use (interactive "r"), then the
+parameters will be filled with begin/end positions of the region.
+
+(defun ff (p1 p2)
+  "sample code, print region begin/end positions."
+  (interactive "r")
+  (message "Region starts: %d, end at: %d" p1 p2))
+
+*** Get Active Region or Current {Word, Line}
+Often you want a command that works on the current word (or line), but if there
+is a text selection, act on the text selection.
+
+Here's a example of getting current word, or active region.
+
+(defun downcase-word-or-region ()
+  "Downcase current word or region."
+(interactive)
+(let (pos1 pos2 bds)
+  (if (use-region-p)
+     (setq pos1 (region-beginning) pos2 (region-end))
+    (progn
+      (setq bds (bounds-of-thing-at-point 'symbol))
+      (setq pos1 (car bds) pos2 (cdr bds))))
+
+  ;; now, pos1 and pos2 are the starting and ending positions of the
+  ;; current word, or current text selection if exist.
+  (downcase-region pos1 pos2)
+  ))
+[see Elisp: Using thing-at-point]
+
+*** Emacs 23 Changes
+Starting with Emacs 23 (release in 2009), transient-mark-mode is on by default,
+and many command's behavior changed. If there is a text selection, the command
+acts on it, else it acts on the current word, line, paragraph, buffer (or
+whatever is its default input).
+
+[see Emacs 23.1 New Features (released 2009-07)]
+
+Commands with this new behavior includes: {fill-paragraph, ispell-word,
+indent-for-tab-command, comment-dwim}. The number of commands that are sensitive
+to existence of text selection will probably increase.
+
+Note that commands ending in “-region” still should act on region as before,
+regardless of the region activeness status.
+
+This change is good, because users don't need to think about whether he should
+choose the region or non-region version of the command. The command simply act
+on a text selection if there is one.
+
+** elisp snippets
+#+BEGIN_SRC elisp
+  ;; if or not identical content of two string
+  (string= "abc" "abc")
+
+  ;; chars concatenate to string
+  ;; emacs 中表示 char 不是用 'xxx' 而是用 ?xxx
+  (string ?l ?b ?c ?.)
+
+  ;; define variable and initial value
+  (setq count 1)
+
+  ;; print somthing in elisp
+  ;; message 只能打印字符串
+  ;; print 可以用来打印对象/变量
+  (message "你好")
+  (print buf)
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; use to produce org file, named in order of number.
+(while (< count 24)
+  (find-file (concat "ML_UCB_CS189_lec"
+                     (number-to-string (+ count 1))
+                     ".org"))
+  (setq count (1+ count)))
+#+END_SRC
+
+#+BEGIN_SRC elisp
+;; There are a number of macros called with-SOMETHING to execute code with
+;; different settings (such as the current buffer) and restore the settings when
+;; the code exits (for any reason, whether it's normal exit or an exception).
+(with-current-buffer "current_buffer_name.el"
+  (goto-char 42)
+  (insert "hello"))
+
+;; 注意这里是 buffer 全名, 也就是通过 spc b b 或者 spc b i 所看到的名字
+;; 对于同名文件而言, buffer_name = file_name + "<directory_name>"
+(with-current-buffer "xxx.el<UCB_CS189_Intro2ML>"
+  (goto-char 42)
+  (insert "hello"))
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; 寻找某个文件,并返回其 buffer
+;; find-file-noselect 函数接受文件名参数; 返回该文件的 buffer
+;; 注意理解 emacs 中 file 与 buffer 的关系:
+;; file 是内容, buffer 是盛放内容的容器,也可以理解为内容的缓存.
+(setq buf (find-file-noselect "yiddi.org"))
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(when buf
+  (goto-char 0)
+  (insert "hello"))
+
+(append-to-file "hello" 0 "yiddi.org")
+
+(f-write-text "some string" 'utf-8 "yiddi.org")
+
+#+END_SRC
+
+
+该程序注意:
+find-file 会打开文件为 buffer, 并切换 emacs 视图为该 buffer
+find-file-noselect 只打开 buffer, 不发生视图切换.
+
+下面的程序如果没有被 progn 包围, 就会在代码所在源文件中直接 insert orgheader;如
+果包含在 progn 中,就不会发生这种情况. 应该是 current-buffer 被切换的原因. 因为当
+你想执行 ~(goto-char 0)~ 的时候, 肯定使用 ~,-e-e~ 那么肯定是把视图切换到源文件
+buffer 了,那么 current-buffer 就切换了.
+
+#+BEGIN_EXAMPLE
+  (set-buffer (find-file-noselect
+               (concat "ML_UCB_CS189_lec"
+                       (number-to-string count)
+                       ".org")))
+  (goto-char 0)
+  (insert orgheader)
+#+END_EXAMPLE
+
+#+BEGIN_SRC elisp
+;; >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+(setq orgheader "\#+TITLE:       lec-01 Regression case study\n\#+AUTHOR:      yiddi\n\#+EMAIL:       yiddishkop\@gmail.com\n\#+DATE:        2017-06-22 五\n\#+URI:         /blog/%y/%m/%d/LiHongYi_ML_lec01_regression\n\#+TAGS:        ml, dl\n\#+LANGUAGE:    en\n\#+OPTIONS:     H:3 num:nil \\n:nil ::t |:t ^:nil -:nil f:t *:t <:t\n")
+
+(setq count 1)
+(while (< count 24)
+  (set-buffer (find-file-noselect
+               (concat "ML_UCB_CS189_lec"
+                       (number-to-string count)
+                       ".org")))
+  (goto-char 0)
+  (insert orgheader)
+  (setq count (1+ count))
+  )
+;; <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(progn
+  (set-buffer (find-file-noselect "yiddi.org"))
+  (goto-char 0)
+  (insert orgheader))
+
+#+END_SRC
+
+#+BEGIN_SRC elisp
+(setq dddstring (with-temp-buffer
+                  (insert-file-contents "dd.txt")
+                  (buffer-string)))
+#+END_SRC
+
+
+#+BEGIN_SRC elisp
+;; example of printing to a temp buffer
+;; prints all file path ending in html
+
+(require 'find-lisp)
+(with-output-to-temp-buffer "*my output*"
+  (mapc
+   (lambda (x)
+     (print x))
+   (find-lisp-find-files
+    "/home/xah/web/ergoemacs_org/emacs/"
+    "\\.html$"))
+  (switch-to-buffer "*my output*"))
+
+#+END_SRC
+
+** --- batch scripts convert from html to org ---
+*** 需求分析
+#+BEGIN_QUOTE
+;; 执行命令 from html to md, then to org
+;; # from html to md
+;; pandoc test.html -o test.md
+
+;; # from jn to other format, eg markdown
+;; jupyter nbconvert --to FORMAT notebook.ipynb
+
+;; # from md to org
+;; pandoc -f markdown -t org -o newfile.org original-file.markdown
+#+END_QUOTE
+
+*** 一些分析和实验用的中间代码
+#+BEGIN_SRC elisp
+;; delete #+BEGIN_HTML #+END_HTML html block
+(progn
+  (set-buffer (find-file-noselect "yyyy.org"))
+  (goto-char 0)
+  (search-forward "#+BEGIN_HTML" nil t)
+  (beginning-of-line)
+  (setq xx (point))
+  (search-forward "#+END_HTML" nil t)
+  (end-of-line)
+  (setq yy (point))
+  (delete-region xx yy)
+  )
+
+;; replace #+BEGIN_EXAMPLE with #+BEGIN_SRC
+;; replace #+END_EXAMPLE with #+END_SRC
+;; 注意 replace-match 的两个可选参数是关于大小写的, 应该设置好, 随便试试就能试出来
+(progn
+  (set-buffer (find-file-noselect "yyyy.org"))
+  (goto-char 0)
+  (while (search-forward "#+END_EXAMPLE" nil t)
+    (replace-match "#+END_SRC" nil t))
+  (while (search-forward "#+BEGIN_EXAMPLE" nil t)
+    (replace-match "#+BEGIN_SRC ipython :tangle yes :session :exports code :async t :results raw drawer" t t))
+  )
+
+#+END_SRC
+
+*** convert from html to org
+#+BEGIN_SRC elisp
+;; Known bugs:
+;; 对于 html 文档标题中带有 shell command 符号的文件转换会出现bug
+;; 对于 超过 3M 的html 文档的转换会使得 pandoc 出现问题, 参考这里: https://github.com/jgm/pandoc/issues/352
+
+(setq labdir "/home/yiddi/git_repos/on_ml_wushanghong/ml/labs/")
+
+(defun htmltoorg (lecdir)
+  "convert all .html files under lecdir directory to org files"
+  (dolist (htmlfile (directory-files lecdir t "html"))
+    (progn
+      (setq pathwithoutext (file-name-sans-extension htmlfile))
+      (setq mdfile (concat pathwithoutext ".md"))
+      (setq orgfile (concat pathwithoutext ".org"))
+      (setq htmltomd (format "pandoc +RTS -K10240000 -RTS %s -o %s" htmlfile mdfile))
+      (message htmltomd)
+      (message (shell-command-to-string htmltomd))
+      (setq mdtoorg (format "pandoc +RTS -K10240000 -RTS -f markdown -t org -o %s %s" orgfile mdfile))
+      (message mdtoorg)
+      (message (shell-command-to-string mdtoorg))
+      )))
+
+(dolist (lecdir (directory-files labdir t)) (htmltoorg lecdir))
+#+END_SRC
+
+*** do some modification on org
+#+BEGIN_SRC elisp
+  ;; part two org 内容的改进
+  ;; 过多 <div> tag in org files
+  ;; 检索 #+BEGIN_HTML 检索 #+END_HTML 将两者之间包含两者所在行都删除
+  ;; example block modify to python src block
+
+  ;; combine the two progn above together
+  ;; and add a while loop to delete empty lines
+  (defun del-html-modify-exmp-block (lecdir)
+    "convert all .html files under lecdir directory to org files"
+    (dolist (htmlfile (directory-files lecdir t "html"))
+      (progn
+        (setq pathwithoutext (file-name-sans-extension htmlfile))
+        (setq orgfile (concat pathwithoutext ".org"))
+
+        ;; del html block
+        (set-buffer (find-file-noselect orgfile))
+        (goto-char 0)
+        (while (search-forward "#+BEGIN_HTML" nil t)
+          (progn
+            (beginning-of-line)
+            (setq beginpos (point))
+            (search-forward "#+END_HTML" nil t)
+            (end-of-line)
+            (setq endpos (point))
+            (delete-region beginpos endpos)
+            )
+          )
+        (message "delete")
+
+        ;; modify example block
+        (goto-char 0)
+        (while (search-forward "#+END_EXAMPLE" nil t)
+          (replace-match "#+END_SRC" nil t))
+        (goto-char 0)
+        (while (search-forward "#+BEGIN_EXAMPLE" nil t)
+          (replace-match "#+BEGIN_SRC ipython :tangle yes :session :exports code :async t :results raw drawer" t t))
+
+        ;; clean multiple empty lines with only 1 empty line
+        (goto-char 0)
+        (while (re-search-forward "\n\n\n+" nil "move")
+          (replace-match "\n\n"))
+
+
+        ;; save buffer
+        (save-buffer)
+        (kill-buffer)
+        )))
+
+  (setq labdir "/home/yiddi/git_repos/on_ml_wushanghong/ml/labs/")
+  (dolist (lecdir (directory-files labdir t)) (del-html-modify-exmp-block lecdir))
 #+END_SRC
