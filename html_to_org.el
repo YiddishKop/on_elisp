@@ -138,7 +138,7 @@
   (dolist (diridx dir-indices)
     (progn
       (setq dir (elt subdirs diridx))
-      (dolist (md-or-html (directory-files dir t ".html\\|.md"))
+      (dolist (md-or-html (directory-files dir t ".html\\|.md\\|.ipython"))
         (progn
           (delete-file md-or-html)
           )
@@ -156,6 +156,8 @@
 
   (setq dirs-len (length subdirs))
 
+  ;; directory-files will include . directory and .. directory
+  ;; exclude these two.
   (setq dir-indices (number-sequence 2 (- dirs-len 1)))
 
   (print dir-indices)
@@ -185,22 +187,57 @@
   )
 
 
+;; part 5
+;; extract python src from org file
+(defun batch-tangle-org (path)
+  (setq subdirs (directory-files path t))
+
+  ;; (print subdirs)
+
+  (setq dirs-len (length subdirs))
+
+  ;; directory-files will include . directory and .. directory
+  ;; exclude these two.
+  (setq dir-indices (number-sequence 2 (- dirs-len 1)))
+
+  ;; (print dir-indices)
+
+  (dolist (diridx dir-indices)
+    (progn
+      (setq dir (elt subdirs diridx))
+      (dolist (orgfile (directory-files dir t "org"))
+        (progn
+          (print orgfile)
+          (setq targetfile (car (org-babel-tangle-file orgfile)))
+          (rename-file targetfile
+                       (concat (file-name-sans-extension targetfile) ".py"))
+          )
+        )
+      )
+    )
+  )
 
 
 
-;; combine part 1 and 2 and 3
+
+;; combine part 1 and 2 and 3 and 4 and 5
 ;; ------------------------------------------------------------------------------
 (defun yid-html-to-org (path)
   (dolist (subpath (directory-files path t)) (htmltoorg subpath))
   (dolist (subpath (directory-files path t)) (del-html-modify-exmp-block subpath))
   (del-html-and-md path)
   (del-dataimage-line path)
+  (batch-tangle-org path)
   )
 
 (setq labdir "/home/yiddi/git_repos/on_ml_wushanghong/ml/labs/")
 (yid-html-to-org labdir)
 
+(del-html-and-md labdir)
+
 (del-dataimage-line labdir)
+
+(batch-tangle-org compdir)
 
 (setq compdir "/home/yiddi/git_repos/on_ml_wushanghong/ml/competitions/")
 (yid-html-to-org compdir)
