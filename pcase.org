@@ -1,0 +1,21 @@
+#+BEGIN_SRC elisp
+(defun spacemacs//python-setup-company ()
+  "Conditionally setup company based on backend."
+  (pcase python-backend
+    (`anaconda (spacemacs//python-setup-anaconda-company))
+    (`lsp (spacemacs//python-setup-lsp-company))))
+#+END_SRC
+
+pcase 有点类似 match case
+
+
+#+BEGIN_EXAMPLE
+
+                                 某个变量
+                               --------------
+                        (pcase python-backend
+                                                   则执行这个函数
+                                     -----------------------------------------
+      其值如果是 ====>    (`anaconda (spacemacs//python-setup-anaconda-company))
+                          (`lsp (spacemacs//python-setup-lsp-company))))
+#+END_EXAMPLE
